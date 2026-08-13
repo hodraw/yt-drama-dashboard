@@ -3,147 +3,148 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta http-equiv="refresh" content="600"> <!-- 每10分鐘自動重新整理網頁 -->
-    <title>劇翻天 Drama Go - 近期熱門影片分析</title>
+    <title>多頻道 YouTube 數據即時觀測儀表板</title>
     <style>
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #f8f9fa; color: #333; margin: 0; padding: 20px; }
-        .container { max-width: 900px; margin: 0 auto; background: #fff; padding: 30px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
-        h1 { border-bottom: 2px solid #e0e0e0; padding-bottom: 10px; color: #111; margin-top: 0; }
-        .timestamp { color: #666; font-size: 0.9em; margin-bottom: 25px; }
-        h2 { margin-top: 30px; color: #cc0000; border-left: 4px solid #cc0000; padding-left: 10px; font-size: 1.25em; }
+        .container { max-width: 1000px; margin: 0 auto; background: #fff; padding: 30px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.08); }
+        h1 { border-bottom: 2px solid #e0e0e0; padding-bottom: 12px; color: #111; margin-top: 0; }
+        .timestamp { color: #666; font-size: 0.9em; margin-bottom: 20px; }
+        
+        .filter-panel { background: #f1f3f5; padding: 20px; border-radius: 8px; margin-bottom: 25px; display: flex; flex-wrap: wrap; gap: 20px; align-items: center; }
+        .filter-group { display: flex; flex-direction: column; gap: 5px; }
+        .filter-group label { font-weight: bold; font-size: 0.9em; color: #495057; }
+        select { padding: 8px 12px; border-radius: 6px; border: 1px solid #ced4da; font-size: 0.95em; outline: none; background: #fff; cursor: pointer; }
+        
         table { width: 100%; border-collapse: collapse; margin-top: 10px; }
         th, td { border: 1px solid #e9ecef; padding: 12px; text-align: left; }
-        th { background-color: #f1f3f5; font-weight: bold; color: #495057; }
-        tr:nth-child(even) { background-color: #f8f9fa; }
+        th { background-color: #f8f9fa; font-weight: bold; color: #495057; }
+        tr:nth-child(even) { background-color: #fafafa; }
         a { color: #065fd4; text-decoration: none; font-weight: 500; }
         a:hover { text-decoration: underline; }
-        .no-data { color: #868e96; font-style: italic; background: #f8f9fa; padding: 12px; border-radius: 4px; border: 1px dashed #dee2e6; }
+        .badge-channel { display: inline-block; background: #e7f5ff; color: #1c7ed6; padding: 3px 8px; border-radius: 4px; font-size: 0.85em; font-weight: bold; margin-bottom: 4px; }
+        .no-data { text-align: center; color: #868e96; font-style: italic; padding: 30px; background: #f8f9fa; border-radius: 6px; }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>劇翻天 Drama Go 數據監測 Dashboard</h1>
-        <p class="timestamp">最後更新時間：2026-08-13 05:54:36 UTC</p>
-    <h2>上架 2 小時內（觀看數前 3 名）</h2><table>
+        <h1>短劇頻道數據即時監測儀表板</h1>
+        <p class="timestamp">數據最後更新時間 (UTC)：<span id="update-time">載入中...</span></p>
+
+        <!-- 動態篩選面板 -->
+        <div class="filter-panel">
+            <div class="filter-group">
+                <label for="channel-select">選擇頻道：</label>
+                <select id="channel-select" onchange="renderTable()">
+                    <option value="ALL">所有頻道 (全頻道排行)</option>
+                </select>
+            </div>
+
+            <div class="filter-group">
+                <label for="time-select">時間範圍：</label>
+                <select id="time-select" onchange="renderTable()">
+                    <option value="2">上架 2 小時內</option>
+                    <option value="12" selected>上架 12 小時內</option>
+                    <option value="48">上架 48 小時內</option>
+                    <option value="168">上架 168 小時 (7天) 內</option>
+                </select>
+            </div>
+
+            <div class="filter-group">
+                <label for="limit-select">顯示排名數量：</label>
+                <select id="limit-select" onchange="renderTable()">
+                    <option value="5" selected>前 5 名</option>
+                    <option value="10">前 10 名</option>
+                    <option value="20">前 20 名</option>
+                </select>
+            </div>
+        </div>
+
+        <!-- 數據表格 -->
+        <div id="table-container">
+            <div class="no-data">正在載入數據...</div>
+        </div>
+    </div>
+
+    <script>
+        let rawData = { channels: [], videos: [] };
+
+        async function loadData() {
+            try {
+                const response = await fetch('data.json?t=' + new Date().getTime());
+                rawData = await response.json();
+                
+                document.getElementById('update-time').innerText = rawData.updated_at || '未知';
+
+                // 動態填充頻道下拉選單
+                const channelSelect = document.getElementById('channel-select');
+                rawData.channels.forEach(ch => {
+                    const opt = document.createElement('option');
+                    opt.value = ch;
+                    opt.innerText = ch;
+                    channelSelect.appendChild(opt);
+                });
+
+                renderTable();
+            } catch (err) {
+                console.error("載入 JSON 失敗:", err);
+                document.getElementById('table-container').innerHTML = `<div class="no-data">數據載入失敗，請確認 data.json 是否成功生成。</div>`;
+            }
+        }
+
+        function renderTable() {
+            const selectedChannel = document.getElementById('channel-select').value;
+            const maxHours = parseFloat(document.getElementById('time-select').value);
+            const limit = parseInt(document.getElementById('limit-select').value);
+
+            // 1. 篩選頻道與時間區間
+            let filtered = rawData.videos.filter(v => {
+                const matchChannel = (selectedChannel === 'ALL') || (v.channel_name === selectedChannel);
+                const matchTime = v.hours_ago <= maxHours;
+                return matchChannel && matchTime;
+            });
+
+            // 2. 依觀看數排序
+            filtered.sort((a, b) => b.views - a.views);
+
+            // 3. 取前 N 名
+            const result = filtered.slice(0, limit);
+
+            // 4. 繪製 HTML 表格
+            const container = document.getElementById('table-container');
+            if (result.length === 0) {
+                container.innerHTML = `<div class="no-data">此篩選條件下無符合條件的影片。</div>`;
+                return;
+            }
+
+            let html = `<table>
                 <thead>
                     <tr>
-                        <th style="width: 50%;">影片名稱</th>
-                        <th style="width: 25%;">發布時間 (UTC)</th>
-                        <th style="width: 25%;">觀看次數</th>
+                        <th style="width: 8%;">排名</th>
+                        <th style="width: 48%;">影片名稱 / 頻道</th>
+                        <th style="width: 24%;">發布時間 (UTC)</th>
+                        <th style="width: 20%;">觀看次數</th>
                     </tr>
                 </thead>
-                <tbody>
+                <tbody>`;
+
+            result.forEach((v, index) => {
+                html += `
                     <tr>
-                        <td><a href="https://www.youtube.com/watch?v=2dyTwgQnLx0" target="_blank">[Multi SUB] （全集）他拼了二十年終於站到演藝圈的頂點，意外重生和娛樂圈女神結婚本想吃軟飯躺平，沒想到竟然被她…#逆襲 #MiniDrama #精彩大陸短劇</a></td>
-                        <td>2026-08-13 04:10:50 UTC</td>
-                        <td><strong>1,351</strong> 次</td>
-                    </tr>
-                    <tr>
-                        <td><a href="https://www.youtube.com/watch?v=lv1hirZ78zc" target="_blank">[Multi SUB] （全集）窮小夥沒想到被勢利眼的家人趕出家門後，竟然綁定了系統，能釣海洋的一切寶藏！#逆襲 #MiniDrama #精彩大陸短劇</a></td>
-                        <td>2026-08-13 05:00:37 UTC</td>
-                        <td><strong>663</strong> 次</td>
-                    </tr>
-                    <tr>
-                        <td><a href="https://www.youtube.com/watch?v=Vk02Df35PzE" target="_blank">[Multi SUB] （全集）窮小夥沒想到斷親被趕出家門後，竟然開局趕海釣出美人魚逆襲打臉成神豪！#逆襲 #MiniDrama #精彩大陸短劇</a></td>
-                        <td>2026-08-13 04:45:09 UTC</td>
-                        <td><strong>531</strong> 次</td>
-                    </tr></tbody></table><h2>上架 12 小時內（觀看數前 5 名）</h2><table>
-                <thead>
-                    <tr>
-                        <th style="width: 50%;">影片名稱</th>
-                        <th style="width: 25%;">發布時間 (UTC)</th>
-                        <th style="width: 25%;">觀看次數</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <tr>
-                        <td><a href="https://www.youtube.com/watch?v=2dyTwgQnLx0" target="_blank">[Multi SUB] （全集）他拼了二十年終於站到演藝圈的頂點，意外重生和娛樂圈女神結婚本想吃軟飯躺平，沒想到竟然被她…#逆襲 #MiniDrama #精彩大陸短劇</a></td>
-                        <td>2026-08-13 04:10:50 UTC</td>
-                        <td><strong>1,351</strong> 次</td>
-                    </tr>
-                    <tr>
-                        <td><a href="https://www.youtube.com/watch?v=e1OAt8XdxnA" target="_blank">[Multi SUB] （全集）窮小夥沒想到被羞辱後，竟然獲得了能從古代歷史召喚大能的能力，開局直接召喚三個美女女帝給他當老婆逆襲打臉勢力女！#系统 #MiniDrama #精彩大陆短剧</a></td>
-                        <td>2026-08-13 02:33:02 UTC</td>
-                        <td><strong>1,275</strong> 次</td>
-                    </tr>
-                    <tr>
-                        <td><a href="https://www.youtube.com/watch?v=bLs3PETeaEQ" target="_blank">[Multi SUB] （全集）窮小夥沒想到剛穿越成為廢物校長，開局就被刺頭學生挑釁找事，他直接用系統金手指逆襲打臉！#逆襲 #MiniDrama #精彩大陸短劇</a></td>
-                        <td>2026-08-13 03:00:32 UTC</td>
-                        <td><strong>1,038</strong> 次</td>
-                    </tr>
-                    <tr>
-                        <td><a href="https://www.youtube.com/watch?v=NE93xtXKSj8" target="_blank">[Multi SUB] （全集）婚禮當天，他沒想到自己深愛的女人竟然臨時加巨額彩禮，他直接攤牌了不裝了，這下勢力丈母娘後悔了… #MiniDrama #精彩大陆短剧</a></td>
-                        <td>2026-08-13 02:14:30 UTC</td>
-                        <td><strong>1,024</strong> 次</td>
-                    </tr>
-                    <tr>
-                        <td><a href="https://www.youtube.com/watch?v=i5XyC3zUGpc" target="_blank">[Multi SUB] （全集）全球荒野求生時代，個人生死事關國運，他直接靠系統萬倍返還系統，開局讓國家氣運登頂逆襲打臉！#逆袭 #MiniDrama #精彩大陆短剧</a></td>
-                        <td>2026-08-13 03:17:52 UTC</td>
-                        <td><strong>941</strong> 次</td>
-                    </tr></tbody></table><h2>上架 48 小時內（觀看數前 5 名）</h2><table>
-                <thead>
-                    <tr>
-                        <th style="width: 50%;">影片名稱</th>
-                        <th style="width: 25%;">發布時間 (UTC)</th>
-                        <th style="width: 25%;">觀看次數</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <tr>
-                        <td><a href="https://www.youtube.com/watch?v=eKNqQHc5M20" target="_blank">[Multi SUB] （全集）窮小夥沒想到被勢利眼的家人趕出家門後，竟然綁定了系統，能釣海洋的一切寶藏！#逆襲 #MiniDrama #精彩大陸短劇</a></td>
-                        <td>2026-08-12 03:36:41 UTC</td>
-                        <td><strong>38,184</strong> 次</td>
-                    </tr>
-                    <tr>
-                        <td><a href="https://www.youtube.com/watch?v=p9r2RoZ_xs0" target="_blank">[Multi SUB] （全集）窮小夥結婚當天被勢力丈母娘臨時加彩禮，他直接當場退婚轉身娶了美女律師當老婆，這下所有人都後悔了…#逆襲 #MiniDrama #精彩大陸短劇</a></td>
-                        <td>2026-08-12 05:00:14 UTC</td>
-                        <td><strong>8,840</strong> 次</td>
-                    </tr>
-                    <tr>
-                        <td><a href="https://www.youtube.com/watch?v=axwdiKqCIWA" target="_blank">[Multi SUB] （全集）大學生小夥沒想到和美女網戀之後，竟然被病嬌美女盯上要倒貼？ ！#逆襲 #MiniDrama #精彩大陸短劇</a></td>
-                        <td>2026-08-12 06:00:31 UTC</td>
-                        <td><strong>7,909</strong> 次</td>
-                    </tr>
-                    <tr>
-                        <td><a href="https://www.youtube.com/watch?v=Y150KMi10LM" target="_blank">[Multi SUB] （全集）窮小夥沒想到失業後參加直播竟然獲得能和動物溝通的能力，開局打臉勢力女友逆襲撿寶藏成神豪！#逆袭  #MiniDrama #精彩大陆短剧</a></td>
-                        <td>2026-08-12 05:45:36 UTC</td>
-                        <td><strong>7,300</strong> 次</td>
-                    </tr>
-                    <tr>
-                        <td><a href="https://www.youtube.com/watch?v=Knv_jSJGy8Y" target="_blank">[Multi SUB] （全集）美女校花沒想到被她認為變態的小夥，竟然是隱藏大佬？ ！#逆襲 #MiniDrama #精彩大陸短劇</a></td>
-                        <td>2026-08-11 06:03:46 UTC</td>
-                        <td><strong>7,221</strong> 次</td>
-                    </tr></tbody></table><h2>上架 168 小時 (7天) 內（觀看數前 5 名）</h2><table>
-                <thead>
-                    <tr>
-                        <th style="width: 50%;">影片名稱</th>
-                        <th style="width: 25%;">發布時間 (UTC)</th>
-                        <th style="width: 25%;">觀看次數</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <tr>
-                        <td><a href="https://www.youtube.com/watch?v=eKNqQHc5M20" target="_blank">[Multi SUB] （全集）窮小夥沒想到被勢利眼的家人趕出家門後，竟然綁定了系統，能釣海洋的一切寶藏！#逆襲 #MiniDrama #精彩大陸短劇</a></td>
-                        <td>2026-08-12 03:36:41 UTC</td>
-                        <td><strong>38,184</strong> 次</td>
-                    </tr>
-                    <tr>
-                        <td><a href="https://www.youtube.com/watch?v=4iiZ4F6Mwlg" target="_blank">[Multi SUB] （全集）窮小夥沒想到被無良老闆開除羞辱後，竟然獲得了透視能力，竟然能看穿一切物品的價值！  #MiniDrama #精彩大陆短剧</a></td>
-                        <td>2026-08-10 04:30:14 UTC</td>
-                        <td><strong>22,016</strong> 次</td>
-                    </tr>
-                    <tr>
-                        <td><a href="https://www.youtube.com/watch?v=3h6PBPBO47w" target="_blank">[Multi SUB] （全集）他愛了她一輩子，沒想到她心理愛的一直是自己的白月光初戀，重來一世，他不愛了，把所有的付出撤回後，她後悔了…#系统 #MiniDrama #精彩大陆短剧</a></td>
-                        <td>2026-08-11 02:30:22 UTC</td>
-                        <td><strong>20,179</strong> 次</td>
-                    </tr>
-                    <tr>
-                        <td><a href="https://www.youtube.com/watch?v=iUfrmMg1S9s" target="_blank">[Multi SUB] （全集）窮小夥被勢力女友看不起羞辱後，跌落海底後，不僅獲得了控海的能力，還能看穿海底的一切寶藏！#逆袭  #MiniDrama #精彩大陆短剧</a></td>
-                        <td>2026-08-10 04:15:22 UTC</td>
-                        <td><strong>19,314</strong> 次</td>
-                    </tr>
-                    <tr>
-                        <td><a href="https://www.youtube.com/watch?v=FDB4e5r6h94" target="_blank">[Multi SUB] （全集）兄弟背叛，妻子出軌，他絕望之時，竟然獲得了透視神眼，不僅能預知未來，還能看穿一切！#逆襲 #MiniDrama #精彩大陸短劇</a></td>
-                        <td>2026-08-10 03:08:59 UTC</td>
-                        <td><strong>17,046</strong> 次</td>
-                    </tr></tbody></table></div></body></html>
+                        <td><strong>#${index + 1}</strong></td>
+                        <td>
+                            <span class="badge-channel">${v.channel_name}</span><br>
+                            <a href="${v.url}" target="_blank">${v.title}</a>
+                        </td>
+                        <td>${v.published_at}</td>
+                        <td><strong>${v.views.toLocaleString()}</strong> 次</td>
+                    </tr>`;
+            });
+
+            html += `</tbody></table>`;
+            container.innerHTML = html;
+        }
+
+        window.onload = loadData;
+    </script>
+</body>
+</html>
