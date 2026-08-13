@@ -13,10 +13,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: 檢出儲存庫程式碼
-        uses: actions/checkout@v4   # 升級至 v4
+        uses: actions/checkout@v4
 
       - name: 設定 Python 環境
-        uses: actions/setup-python@v5  # 升級至 v5
+        uses: actions/setup-python@v5
         with:
           python-version: '3.10'
 
@@ -31,9 +31,9 @@ jobs:
         run: |
           python fetch_yt_stats.py
 
-      - name: 自動提交並更新 index.html 到 GitHub
+      - name: 自動提交並更新數據檔與網頁到 GitHub
         run: |
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action Bot"
-          git add index.html
-          git diff --quiet && git diff --staged --quiet || (git commit -m "Auto-update video statistics [skip ci]" && git push)
+          git add data.json index.html
+          git diff --quiet && git diff --staged --quiet || (git commit -m "Auto-update YouTube statistics data [skip ci]" && git push)
