@@ -1,5 +1,9 @@
 name: Auto Update YouTube Stats
 
+# 新增此段賦予寫入權限
+permissions:
+  contents: write
+
 on:
   schedule:
     # 每 30 分鐘自動執行一次 (Cron 格式)
