@@ -6,7 +6,7 @@
     <title>短劇頻道數據即時監測儀表板</title>
     <style>
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #f8f9fa; color: #333; margin: 0; padding: 20px; }
-        .container { max-width: 1000px; margin: 0 auto; background: #fff; padding: 30px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.08); }
+        .container { max-width: 1050px; margin: 0 auto; background: #fff; padding: 30px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.08); }
         h1 { border-bottom: 2px solid #e0e0e0; padding-bottom: 12px; color: #111; margin-top: 0; }
         .timestamp { color: #666; font-size: 0.9em; margin-bottom: 20px; }
         
@@ -22,6 +22,7 @@
         a { color: #065fd4; text-decoration: none; font-weight: 500; }
         a:hover { text-decoration: underline; }
         .badge-channel { display: inline-block; background: #e7f5ff; color: #1c7ed6; padding: 3px 8px; border-radius: 4px; font-size: 0.85em; font-weight: bold; margin-bottom: 4px; }
+        .highlight-col { background-color: #fff9db; font-weight: bold; }
         .no-data { text-align: center; color: #868e96; font-style: italic; padding: 30px; background: #f8f9fa; border-radius: 6px; }
     </style>
 </head>
@@ -30,7 +31,6 @@
         <h1>短劇頻道數據即時監測儀表板</h1>
         <p class="timestamp">數據最後更新時間 (台北時間)：<span id="update-time">載入中...</span></p>
 
-        <!-- 動態篩選面板 -->
         <div class="filter-panel">
             <div class="filter-group">
                 <label for="channel-select">選擇頻道：</label>
@@ -50,6 +50,14 @@
             </div>
 
             <div class="filter-group">
+                <label for="sort-select">排序依據：</label>
+                <select id="sort-select" onchange="renderTable()">
+                    <option value="views" selected>依觀看次數</option>
+                    <option value="likes">依喜歡次數 (按讚數)</option>
+                </select>
+            </div>
+
+            <div class="filter-group">
                 <label for="limit-select">顯示排名數量：</label>
                 <select id="limit-select" onchange="renderTable()">
                     <option value="5" selected>前 5 名</option>
@@ -59,7 +67,6 @@
             </div>
         </div>
 
-        <!-- 數據表格 -->
         <div id="table-container">
             <div class="no-data">正在載入數據...</div>
         </div>
@@ -93,6 +100,7 @@
         function renderTable() {
             const selectedChannel = document.getElementById('channel-select').value;
             const maxHours = parseFloat(document.getElementById('time-select').value);
+            const sortBy = document.getElementById('sort-select').value; // views 或 likes
             const limit = parseInt(document.getElementById('limit-select').value);
 
             let filtered = rawData.videos.filter(v => {
@@ -101,7 +109,8 @@
                 return matchChannel && matchTime;
             });
 
-            filtered.sort((a, b) => b.views - a.views);
+            // 動態選擇依據觀看數或按讚數排序
+            filtered.sort((a, b) => (b[sortBy] || 0) - (a[sortBy] || 0));
             const result = filtered.slice(0, limit);
 
             const container = document.getElementById('table-container');
@@ -110,18 +119,24 @@
                 return;
             }
 
+            const isViewsSort = sortBy === 'views';
+
             let html = `<table>
                 <thead>
                     <tr>
-                        <th style="width: 8%;">排名</th>
-                        <th style="width: 48%;">影片名稱 / 頻道</th>
-                        <th style="width: 24%;">發布時間 (台北時間)</th>
-                        <th style="width: 20%;">觀看次數</th>
+                        <th style="width: 7%;">排名</th>
+                        <th style="width: 43%;">影片名稱 / 頻道</th>
+                        <th style="width: 20%;">發布時間 (台北時間)</th>
+                        <th style="width: 15%;" class="${isViewsSort ? 'highlight-col' : ''}">觀看次數 ${isViewsSort ? '▼' : ''}</th>
+                        <th style="width: 15%;" class="${!isViewsSort ? 'highlight-col' : ''}">喜歡次數 ${!isViewsSort ? '▼' : ''}</th>
                     </tr>
                 </thead>
                 <tbody>`;
 
             result.forEach((v, index) => {
+                const viewsFormatted = v.views !== undefined ? v.views.toLocaleString() : '0';
+                const likesFormatted = v.likes !== undefined ? v.likes.toLocaleString() : '0';
+
                 html += `
                     <tr>
                         <td><strong>#${index + 1}</strong></td>
@@ -130,7 +145,8 @@
                             <a href="${v.url}" target="_blank">${v.title}</a>
                         </td>
                         <td>${v.published_at}</td>
-                        <td><strong>${v.views.toLocaleString()}</strong> 次</td>
+                        <td class="${isViewsSort ? 'highlight-col' : ''}">${viewsFormatted} 次</td>
+                        <td class="${!isViewsSort ? 'highlight-col' : ''}">${likesFormatted} 次</td>
                     </tr>`;
             });
 
