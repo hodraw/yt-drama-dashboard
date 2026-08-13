@@ -15,8 +15,10 @@ CHANNELS = [
     {"name": "九菇凉", "id": "UCP9N46LjGL-_UkhiEMxfMug"}
 ]
 
-# 最大抓取天數 (168 小時 = 7 天)，超過此時間的影片就停止繼續往前抓
 MAX_FETCH_HOURS = 168 
+
+# 定義台北時區 (UTC+8)
+TAIPEI_TZ = datetime.timezone(datetime.timedelta(hours=8))
 
 def get_channel_uploads_playlist_id(youtube, channel_id):
     try:
@@ -32,11 +34,10 @@ def fetch_recent_videos_with_pagination(youtube, playlist_id, channel_name):
     if not playlist_id:
         return []
         
-    now = datetime.datetime.now(datetime.timezone.utc)
+    now_utc = datetime.datetime.now(datetime.timezone.utc)
     all_raw_items = []
     next_page_token = None
     
-    # 步驟 1：利用分頁向下抓取，直到遇到超過 168 小時的影片為止
     while True:
         playlist_res = youtube.playlistItems().list(
             playlistId=playlist_id,
@@ -52,8 +53,8 @@ def fetch_recent_videos_with_pagination(youtube, playlist_id, channel_name):
         stop_fetching = False
         for item in items:
             published_at_str = item["snippet"]["publishedAt"]
-            published_at = datetime.datetime.fromisoformat(published_at_str.replace("Z", "+00:00"))
-            hours_diff = (now - published_at).total_seconds() / 3600.0
+            published_at_utc = datetime.datetime.fromisoformat(published_at_str.replace("Z", "+00:00"))
+            hours_diff = (now_utc - published_at_utc).total_seconds() / 3600.0
 
             if hours_diff > MAX_FETCH_HOURS:
                 stop_fetching = True
@@ -62,8 +63,6 @@ def fetch_recent_videos_with_pagination(youtube, playlist_id, channel_name):
             all_raw_items.append(item)
 
         next_page_token = playlist_res.get("nextPageToken")
-        
-        # 如果已經遇到超過 7 天的影片，或是沒有下一頁了，就終止迴圈
         if stop_fetching or not next_page_token:
             break
 
@@ -71,7 +70,6 @@ def fetch_recent_videos_with_pagination(youtube, playlist_id, channel_name):
     if not video_ids:
         return []
 
-    # 步驟 2：分批向 videos API 查詢觀看次數 (API 每次最多查詢 50 個 ID)
     videos = []
     chunk_size = 50
     for i in range(0, len(video_ids), chunk_size):
@@ -83,14 +81,17 @@ def fetch_recent_videos_with_pagination(youtube, playlist_id, channel_name):
 
         for item in video_res.get("items", []):
             published_at_str = item["snippet"]["publishedAt"]
-            published_at = datetime.datetime.fromisoformat(published_at_str.replace("Z", "+00:00"))
-            hours_diff = (now - published_at).total_seconds() / 3600.0
+            published_at_utc = datetime.datetime.fromisoformat(published_at_str.replace("Z", "+00:00"))
+            
+            # 轉為台北時間 (UTC+8)
+            published_at_taipei = published_at_utc.astimezone(TAIPEI_TZ)
+            hours_diff = (now_utc - published_at_utc).total_seconds() / 3600.0
 
             videos.append({
                 "channel_name": channel_name,
                 "title": item["snippet"]["title"],
                 "url": f"https://www.youtube.com/watch?v={item['id']}",
-                "published_at": published_at.strftime("%Y-%m-%d %H:%M:%S UTC"),
+                "published_at": published_at_taipei.strftime("%Y-%m-%d %H:%M:%S"),
                 "views": int(item["statistics"].get("viewCount", 0)),
                 "hours_ago": hours_diff
             })
@@ -106,10 +107,12 @@ def main():
         playlist_id = get_channel_uploads_playlist_id(youtube, channel["id"])
         videos = fetch_recent_videos_with_pagination(youtube, playlist_id, channel["name"])
         all_videos.extend(videos)
-        print(f"-> {channel['name']} 共抓取到 {len(videos)} 筆符合時間內的影片。")
+
+    # 取得台北時間作為最後更新時間
+    now_taipei = datetime.datetime.now(TAIPEI_TZ)
 
     output_data = {
-        "updated_at": datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC"),
+        "updated_at": now_taipei.strftime("%Y-%m-%d %H:%M:%S"),
         "channels": [c["name"] for c in CHANNELS],
         "videos": all_videos
     }
