@@ -1,6 +1,7 @@
 import os
 import json
 import datetime
+from zoneinfo import ZoneInfo
 from googleapiclient.discovery import build
 
 API_KEY = os.environ.get("YOUTUBE_API_KEY")
@@ -16,9 +17,7 @@ CHANNELS = [
 ]
 
 MAX_FETCH_HOURS = 168 
-
-# 定義台北時區 (UTC+8)
-TAIPEI_TZ = datetime.timezone(datetime.timedelta(hours=8))
+TAIPEI_TZ = ZoneInfo("Asia/Taipei")
 
 def get_channel_uploads_playlist_id(youtube, channel_id):
     try:
@@ -34,7 +33,7 @@ def fetch_recent_videos_with_pagination(youtube, playlist_id, channel_name):
     if not playlist_id:
         return []
         
-    now_utc = datetime.datetime.now(datetime.timezone.utc)
+    now = datetime.datetime.now(datetime.timezone.utc)
     all_raw_items = []
     next_page_token = None
     
@@ -53,8 +52,8 @@ def fetch_recent_videos_with_pagination(youtube, playlist_id, channel_name):
         stop_fetching = False
         for item in items:
             published_at_str = item["snippet"]["publishedAt"]
-            published_at_utc = datetime.datetime.fromisoformat(published_at_str.replace("Z", "+00:00"))
-            hours_diff = (now_utc - published_at_utc).total_seconds() / 3600.0
+            published_at = datetime.datetime.fromisoformat(published_at_str.replace("Z", "+00:00"))
+            hours_diff = (now - published_at).total_seconds() / 3600.0
 
             if hours_diff > MAX_FETCH_HOURS:
                 stop_fetching = True
@@ -83,16 +82,18 @@ def fetch_recent_videos_with_pagination(youtube, playlist_id, channel_name):
             published_at_str = item["snippet"]["publishedAt"]
             published_at_utc = datetime.datetime.fromisoformat(published_at_str.replace("Z", "+00:00"))
             
-            # 轉為台北時間 (UTC+8)
             published_at_taipei = published_at_utc.astimezone(TAIPEI_TZ)
-            hours_diff = (now_utc - published_at_utc).total_seconds() / 3600.0
+            hours_diff = (now - published_at_utc).total_seconds() / 3600.0
+
+            stats = item.get("statistics", {})
 
             videos.append({
                 "channel_name": channel_name,
                 "title": item["snippet"]["title"],
                 "url": f"https://www.youtube.com/watch?v={item['id']}",
                 "published_at": published_at_taipei.strftime("%Y-%m-%d %H:%M:%S"),
-                "views": int(item["statistics"].get("viewCount", 0)),
+                "views": int(stats.get("viewCount", 0)),
+                "likes": int(stats.get("likeCount", 0)),  # 擷取喜歡/按讚次數
                 "hours_ago": hours_diff
             })
 
@@ -108,7 +109,6 @@ def main():
         videos = fetch_recent_videos_with_pagination(youtube, playlist_id, channel["name"])
         all_videos.extend(videos)
 
-    # 取得台北時間作為最後更新時間
     now_taipei = datetime.datetime.now(TAIPEI_TZ)
 
     output_data = {
@@ -120,7 +120,7 @@ def main():
     with open("data.json", "w", encoding="utf-8") as f:
         json.dump(output_data, f, ensure_ascii=False, indent=2)
 
-    print("資料更新成功，已寫入 data.json！")
+    print("資料更新成功，已包含喜歡次數（likes）！")
 
 if __name__ == "__main__":
     main()
