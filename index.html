@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>多頻道 YouTube 數據即時觀測儀表板</title>
+    <title>短劇頻道數據即時監測儀表板</title>
     <style>
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #f8f9fa; color: #333; margin: 0; padding: 20px; }
         .container { max-width: 1000px; margin: 0 auto; background: #fff; padding: 30px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.08); }
@@ -28,7 +28,7 @@
 <body>
     <div class="container">
         <h1>短劇頻道數據即時監測儀表板</h1>
-        <p class="timestamp">數據最後更新時間 (UTC)：<span id="update-time">載入中...</span></p>
+        <p class="timestamp">數據最後更新時間 (台北時間)：<span id="update-time">載入中...</span></p>
 
         <!-- 動態篩選面板 -->
         <div class="filter-panel">
@@ -75,7 +75,6 @@
                 
                 document.getElementById('update-time').innerText = rawData.updated_at || '未知';
 
-                // 動態填充頻道下拉選單
                 const channelSelect = document.getElementById('channel-select');
                 rawData.channels.forEach(ch => {
                     const opt = document.createElement('option');
@@ -96,20 +95,15 @@
             const maxHours = parseFloat(document.getElementById('time-select').value);
             const limit = parseInt(document.getElementById('limit-select').value);
 
-            // 1. 篩選頻道與時間區間
             let filtered = rawData.videos.filter(v => {
                 const matchChannel = (selectedChannel === 'ALL') || (v.channel_name === selectedChannel);
                 const matchTime = v.hours_ago <= maxHours;
                 return matchChannel && matchTime;
             });
 
-            // 2. 依觀看數排序
             filtered.sort((a, b) => b.views - a.views);
-
-            // 3. 取前 N 名
             const result = filtered.slice(0, limit);
 
-            // 4. 繪製 HTML 表格
             const container = document.getElementById('table-container');
             if (result.length === 0) {
                 container.innerHTML = `<div class="no-data">此篩選條件下無符合條件的影片。</div>`;
@@ -121,7 +115,7 @@
                     <tr>
                         <th style="width: 8%;">排名</th>
                         <th style="width: 48%;">影片名稱 / 頻道</th>
-                        <th style="width: 24%;">發布時間 (UTC)</th>
+                        <th style="width: 24%;">發布時間 (台北時間)</th>
                         <th style="width: 20%;">觀看次數</th>
                     </tr>
                 </thead>
