@@ -18,6 +18,7 @@ CHANNELS = [
     {"name": "Mini Drama777", "id": "UCR8kbE4RT723quTog78jRbg"},
     {"name": "天馬短劇", "id": "UC5f6yhQbJ7ZDHH0B6Am8VNw"},
     {"name": "世界短劇", "id": "UCUpppsP5x1KHIAwfIujFMIg"},
+    {"name": "风云剧场", "id": "UCKtxY6fus0ZSPitIwdLy29Q"},
     {"name": "燚棠短剧NO1SHORTFILM", "id": "UCI-N31kUSHbtyj5Lkn8VBhQ"},
     {"name": "苍龙剧场", "id": "UCcMyhLA_16r7B6Ud9GFGDKg"},
     {"name": "日笙短劇社", "id": "UCPk97AuvU6eORLrNIB07C8g"},
