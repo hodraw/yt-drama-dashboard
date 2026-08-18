@@ -13,7 +13,8 @@
         .filter-panel { background: #f1f3f5; padding: 20px; border-radius: 8px; margin-bottom: 25px; display: flex; flex-wrap: wrap; gap: 20px; align-items: center; }
         .filter-group { display: flex; flex-direction: column; gap: 5px; }
         .filter-group label { font-weight: bold; font-size: 0.9em; color: #495057; }
-        select { padding: 8px 12px; border-radius: 6px; border: 1px solid #ced4da; font-size: 0.95em; outline: none; background: #fff; cursor: pointer; }
+        select, input[type="text"] { padding: 8px 12px; border-radius: 6px; border: 1px solid #ced4da; font-size: 0.95em; outline: none; background: #fff; }
+        input[type="text"]:focus { border-color: #1c7ed6; box-shadow: 0 0 0 2px rgba(28, 126, 214, 0.2); }
         
         table { width: 100%; border-collapse: collapse; margin-top: 10px; }
         th, td { border: 1px solid #e9ecef; padding: 12px; text-align: left; }
@@ -41,6 +42,11 @@
         <p class="timestamp">數據最後更新時間 (台北時間)：<span id="update-time">載入中...</span></p>
 
         <div class="filter-panel">
+            <div class="filter-group">
+                <label for="search-input">搜尋影片名稱：</label>
+                <input type="text" id="search-input" placeholder="輸入關鍵字..." oninput="renderTable()">
+            </div>
+
             <div class="filter-group">
                 <label for="channel-select">選擇頻道：</label>
                 <select id="channel-select" onchange="renderTable()">
@@ -107,6 +113,7 @@
         }
 
         function renderTable() {
+            const keyword = document.getElementById('search-input').value.trim().toLowerCase();
             const selectedChannel = document.getElementById('channel-select').value;
             const maxHours = parseFloat(document.getElementById('time-select').value);
             const sortBy = document.getElementById('sort-select').value; // views 或 likes
@@ -115,7 +122,8 @@
             let filtered = rawData.videos.filter(v => {
                 const matchChannel = (selectedChannel === 'ALL') || (v.channel_name === selectedChannel);
                 const matchTime = v.hours_ago <= maxHours;
-                return matchChannel && matchTime;
+                const matchKeyword = !keyword || v.title.toLowerCase().includes(keyword);
+                return matchChannel && matchTime && matchKeyword;
             });
 
             // 動態選擇依據觀看數或按讚數排序
