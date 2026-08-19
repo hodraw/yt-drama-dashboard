@@ -3,6 +3,7 @@ import json
 import datetime
 from zoneinfo import ZoneInfo
 from googleapiclient.discovery import build
+from opencc import OpenCC  # 引入簡轉繁套件
 
 API_KEY = os.environ.get("YOUTUBE_API_KEY")
 
@@ -32,6 +33,9 @@ CHANNELS = [
 
 MAX_FETCH_HOURS = 168 
 TAIPEI_TZ = ZoneInfo("Asia/Taipei")
+
+# 初始化 OpenCC (s2twp: 簡體中文 -> 台灣繁體中文，包含慣用語轉換)
+cc = OpenCC('s2twp')
 
 def get_channel_uploads_playlist_id(youtube, channel_id):
     try:
@@ -101,13 +105,17 @@ def fetch_recent_videos_with_pagination(youtube, playlist_id, channel_name):
 
             stats = item.get("statistics", {})
 
+            # 取得原始標題並轉換為繁體中文
+            raw_title = item["snippet"]["title"]
+            traditional_title = cc.convert(raw_title)
+
             videos.append({
                 "channel_name": channel_name,
-                "title": item["snippet"]["title"],
+                "title": traditional_title,  # 使用轉繁後的標題
                 "url": f"https://www.youtube.com/watch?v={item['id']}",
                 "published_at": published_at_taipei.strftime("%Y-%m-%d %H:%M:%S"),
                 "views": int(stats.get("viewCount", 0)),
-                "likes": int(stats.get("likeCount", 0)),  # 擷取喜歡/按讚次數
+                "likes": int(stats.get("likeCount", 0)),
                 "hours_ago": hours_diff
             })
 
@@ -134,7 +142,7 @@ def main():
     with open("data.json", "w", encoding="utf-8") as f:
         json.dump(output_data, f, ensure_ascii=False, indent=2)
 
-    print("資料更新成功，已包含喜歡次數（likes）！")
+    print("資料更新成功，影片標題已轉換為繁體中文！")
 
 if __name__ == "__main__":
     main()
