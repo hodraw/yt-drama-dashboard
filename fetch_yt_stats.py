@@ -24,7 +24,6 @@ CHANNELS = [
     {"name": "日笙短劇社", "id": "UCPk97AuvU6eORLrNIB07C8g"},
     {"name": "六翼至尊剧场", "id": "UCEoo7fRPdKccY7mgBK8E90Q"},
     {"name": "頂好劇場ShortDrama", "id": "UCPCNrZCIV7LkrmR86cgNP9g"},
-    {"name": "爆款短剧城", "id": "UCnynguz8OC9m0AucHJvDJHw"},
     {"name": "王者热血剧场", "id": "UC_aakc4eZBWKOt3l_ENCgng"},
     {"name": "风云剧场", "id": "UCKtxY6fus0ZSPitIwdLy29Q"},
     {"name": "神漫剧场・真人版", "id": "UC8drAG0BV-uai3b2rplzmlw"},
