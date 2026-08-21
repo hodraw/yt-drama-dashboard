@@ -3,7 +3,7 @@ import json
 import datetime
 from zoneinfo import ZoneInfo
 from googleapiclient.discovery import build
-from opencc import OpenCC  # 引入簡轉繁套件
+from opencc import OpenCC
 
 API_KEY = os.environ.get("YOUTUBE_API_KEY")
 
@@ -33,55 +33,60 @@ CHANNELS = [
 
 MAX_FETCH_HOURS = 168 
 TAIPEI_TZ = ZoneInfo("Asia/Taipei")
-
-# 初始化 OpenCC (s2twp: 簡體中文 -> 台灣繁體中文，包含慣用語轉換)
 cc = OpenCC('s2twp')
 
 def get_channel_uploads_playlist_id(youtube, channel_id):
+    """透過 API 正確獲取頻道的上傳播放清單 ID"""
     try:
         res = youtube.channels().list(id=channel_id, part="contentDetails").execute()
         items = res.get("items", [])
         if items:
             return items[0]["contentDetails"]["relatedPlaylists"]["uploads"]
     except Exception as e:
-        print(f"Error fetching playlist id for {channel_id}: {e}")
+        print(f"⚠️ 無法取得頻道 {channel_id} 的播放清單 ID: {e}")
     return None
 
 def fetch_recent_videos_with_pagination(youtube, playlist_id, channel_name):
     if not playlist_id:
+        print(f"⚠️ 頻道【{channel_name}】無有效的播放清單，已跳過。")
         return []
         
     now = datetime.datetime.now(datetime.timezone.utc)
     all_raw_items = []
     next_page_token = None
     
-    while True:
-        playlist_res = youtube.playlistItems().list(
-            playlistId=playlist_id,
-            part="snippet",
-            maxResults=50,
-            pageToken=next_page_token
-        ).execute()
+    try:
+        while True:
+            playlist_res = youtube.playlistItems().list(
+                playlistId=playlist_id,
+                part="snippet",
+                maxResults=50,
+                pageToken=next_page_token
+            ).execute()
 
-        items = playlist_res.get("items", [])
-        if not items:
-            break
-
-        stop_fetching = False
-        for item in items:
-            published_at_str = item["snippet"]["publishedAt"]
-            published_at = datetime.datetime.fromisoformat(published_at_str.replace("Z", "+00:00"))
-            hours_diff = (now - published_at).total_seconds() / 3600.0
-
-            if hours_diff > MAX_FETCH_HOURS:
-                stop_fetching = True
+            items = playlist_res.get("items", [])
+            if not items:
                 break
-            
-            all_raw_items.append(item)
 
-        next_page_token = playlist_res.get("nextPageToken")
-        if stop_fetching or not next_page_token:
-            break
+            stop_fetching = False
+            for item in items:
+                published_at_str = item["snippet"]["publishedAt"]
+                published_at = datetime.datetime.fromisoformat(published_at_str.replace("Z", "+00:00"))
+                hours_diff = (now - published_at).total_seconds() / 3600.0
+
+                if hours_diff > MAX_FETCH_HOURS:
+                    stop_fetching = True
+                    break
+                
+                all_raw_items.append(item)
+
+            next_page_token = playlist_res.get("nextPageToken")
+            if stop_fetching or not next_page_token:
+                break
+
+    except Exception as e:
+        print(f"⚠️ 抓取【{channel_name}】影片列表時發生錯誤 (已跳過): {e}")
+        return []
 
     video_ids = [item["snippet"]["resourceId"]["videoId"] for item in all_raw_items]
     if not video_ids:
@@ -91,33 +96,34 @@ def fetch_recent_videos_with_pagination(youtube, playlist_id, channel_name):
     chunk_size = 50
     for i in range(0, len(video_ids), chunk_size):
         chunk_ids = video_ids[i:i + chunk_size]
-        video_res = youtube.videos().list(
-            id=",".join(chunk_ids),
-            part="snippet,statistics"
-        ).execute()
+        try:
+            video_res = youtube.videos().list(
+                id=",".join(chunk_ids),
+                part="snippet,statistics"
+            ).execute()
 
-        for item in video_res.get("items", []):
-            published_at_str = item["snippet"]["publishedAt"]
-            published_at_utc = datetime.datetime.fromisoformat(published_at_str.replace("Z", "+00:00"))
-            
-            published_at_taipei = published_at_utc.astimezone(TAIPEI_TZ)
-            hours_diff = (now - published_at_utc).total_seconds() / 3600.0
+            for item in video_res.get("items", []):
+                published_at_str = item["snippet"]["publishedAt"]
+                published_at_utc = datetime.datetime.fromisoformat(published_at_str.replace("Z", "+00:00"))
+                
+                published_at_taipei = published_at_utc.astimezone(TAIPEI_TZ)
+                hours_diff = (now - published_at_utc).total_seconds() / 3600.0
 
-            stats = item.get("statistics", {})
+                stats = item.get("statistics", {})
+                raw_title = item["snippet"]["title"]
+                traditional_title = cc.convert(raw_title)
 
-            # 取得原始標題並轉換為繁體中文
-            raw_title = item["snippet"]["title"]
-            traditional_title = cc.convert(raw_title)
-
-            videos.append({
-                "channel_name": channel_name,
-                "title": traditional_title,  # 使用轉繁後的標題
-                "url": f"https://www.youtube.com/watch?v={item['id']}",
-                "published_at": published_at_taipei.strftime("%Y-%m-%d %H:%M:%S"),
-                "views": int(stats.get("viewCount", 0)),
-                "likes": int(stats.get("likeCount", 0)),
-                "hours_ago": hours_diff
-            })
+                videos.append({
+                    "channel_name": channel_name,
+                    "title": traditional_title,
+                    "url": f"https://www.youtube.com/watch?v={item['id']}",
+                    "published_at": published_at_taipei.strftime("%Y-%m-%d %H:%M:%S"),
+                    "views": int(stats.get("viewCount", 0)),
+                    "likes": int(stats.get("likeCount", 0)),
+                    "hours_ago": hours_diff
+                })
+        except Exception as e:
+            print(f"⚠️ 抓取【{channel_name}】影片詳細數據時發生錯誤: {e}")
 
     return videos
 
@@ -142,7 +148,7 @@ def main():
     with open("data.json", "w", encoding="utf-8") as f:
         json.dump(output_data, f, ensure_ascii=False, indent=2)
 
-    print("資料更新成功，影片標題已轉換為繁體中文！")
+    print("資料更新成功！")
 
 if __name__ == "__main__":
     main()
