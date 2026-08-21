@@ -22,7 +22,6 @@ CHANNELS = [
     {"name": "燚棠短剧NO1SHORTFILM", "id": "UCI-N31kUSHbtyj5Lkn8VBhQ"},
     {"name": "苍龙剧场", "id": "UCcMyhLA_16r7B6Ud9GFGDKg"},
     {"name": "日笙短劇社", "id": "UCPk97AuvU6eORLrNIB07C8g"},
-    {"name": "六翼至尊剧场", "id": "UCEoo7fRPdKccY7mgBK8E90Q"},
     {"name": "頂好劇場ShortDrama", "id": "UCPCNrZCIV7LkrmR86cgNP9g"},
     {"name": "王者热血剧场", "id": "UC_aakc4eZBWKOt3l_ENCgng"},
     {"name": "风云剧场", "id": "UCKtxY6fus0ZSPitIwdLy29Q"},
