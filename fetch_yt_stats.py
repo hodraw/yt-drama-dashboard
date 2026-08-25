@@ -15,6 +15,8 @@ CHANNELS = [
     {"name": "盛世短剧", "id": "UC_GcrznCXn6b-i1Y7DOn54A"},
     {"name": "九菇凉", "id": "UCP9N46LjGL-_UkhiEMxfMug"},
     {"name": "劇翻天 Drama Go", "id": "UCIXjvnAhFma9fn8dJk6dMKg"},
+    {"name": "浅浅说漫", "id": "UCdeW-4k31PuecTuMQ4Az3xg"},
+    {"name": "火龍劇場", "id": "UCThqrNqzKngrnnfJaqhHGnQ"},
     {"name": "甜梦剧场", "id": "UCYANeI_-jbGRXoZQrFBVY9w"},
     {"name": "Mini Drama777", "id": "UCR8kbE4RT723quTog78jRbg"},
     {"name": "天馬短劇", "id": "UC5f6yhQbJ7ZDHH0B6Am8VNw"},
