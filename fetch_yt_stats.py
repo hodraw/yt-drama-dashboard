@@ -30,7 +30,7 @@ CHANNELS = [
     {"name": "星梦AI社", "id": "UCUDZ-mp8iNVypuhFe9-CS5Q"}
 ]
 
-MAX_FETCH_HOURS = 168 
+MAX_FETCH_HOURS = 240 
 TAIPEI_TZ = ZoneInfo("Asia/Taipei")
 cc = OpenCC('s2twp')
 
