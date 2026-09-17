@@ -1,41 +1,148 @@
 <!DOCTYPE html>
 <html lang="zh-TW">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AI短劇頻道數據即時監測儀表板</title>
     <style>
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #f8f9fa; color: #333; margin: 0; padding: 20px; }
-        .container { max-width: 1050px; margin: 0 auto; background: #fff; padding: 30px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.08); }
-        h1 { border-bottom: 2px solid #e0e0e0; padding-bottom: 12px; color: #111; margin-top: 0; }
-        .timestamp { color: #666; font-size: 0.9em; margin-bottom: 20px; }
-        
-        .filter-panel { background: #f1f3f5; padding: 20px; border-radius: 8px; margin-bottom: 25px; display: flex; flex-wrap: wrap; gap: 20px; align-items: center; }
-        .filter-group { display: flex; flex-direction: column; gap: 5px; }
-        .filter-group label { font-weight: bold; font-size: 0.9em; color: #495057; }
-        select, input[type="text"] { padding: 8px 12px; border-radius: 6px; border: 1px solid #ced4da; font-size: 0.95em; outline: none; background: #fff; }
-        input[type="text"]:focus { border-color: #1c7ed6; box-shadow: 0 0 0 2px rgba(28, 126, 214, 0.2); }
-        
-        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-        th, td { border: 1px solid #e9ecef; padding: 12px; text-align: left; }
-        th { background-color: #f8f9fa; font-weight: bold; color: #495057; }
-        tr:nth-child(even) { background-color: #fafafa; }
-        a { color: #065fd4; text-decoration: none; font-weight: 500; }
-        a:hover { text-decoration: underline; }
-        .badge-channel { display: inline-block; background: #e7f5ff; color: #1c7ed6; padding: 3px 8px; border-radius: 4px; font-size: 0.85em; font-weight: bold; margin-bottom: 4px; }
-        .highlight-col { background-color: #fff9db; font-weight: bold; }
-        .no-data { text-align: center; color: #868e96; font-style: italic; padding: 30px; background: #f8f9fa; border-radius: 6px; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: #f8f9fa;
+            color: #333;
+            margin: 0;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1050px;
+            margin: 0 auto;
+            background: #fff;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+        }
+
+        h1 {
+            border-bottom: 2px solid #e0e0e0;
+            padding-bottom: 12px;
+            color: #111;
+            margin-top: 0;
+        }
+
+        .timestamp {
+            color: #666;
+            font-size: 0.9em;
+            margin-bottom: 20px;
+        }
+
+        .filter-panel {
+            background: #f1f3f5;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 25px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+            align-items: center;
+        }
+
+        .filter-group {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        .filter-group label {
+            font-weight: bold;
+            font-size: 0.9em;
+            color: #495057;
+        }
+
+        select,
+        input[type="text"] {
+            padding: 8px 12px;
+            border-radius: 6px;
+            border: 1px solid #ced4da;
+            font-size: 0.95em;
+            outline: none;
+            background: #fff;
+        }
+
+        input[type="text"]:focus {
+            border-color: #1c7ed6;
+            box-shadow: 0 0 0 2px rgba(28, 126, 214, 0.2);
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+        }
+
+        th,
+        td {
+            border: 1px solid #e9ecef;
+            padding: 12px;
+            text-align: left;
+        }
+
+        th {
+            background-color: #f8f9fa;
+            font-weight: bold;
+            color: #495057;
+        }
+
+        tr:nth-child(even) {
+            background-color: #fafafa;
+        }
+
+        a {
+            color: #065fd4;
+            text-decoration: none;
+            font-weight: 500;
+        }
+
+        a:hover {
+            text-decoration: underline;
+        }
+
+        .badge-channel {
+            display: inline-block;
+            background: #e7f5ff;
+            color: #1c7ed6;
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-size: 0.85em;
+            font-weight: bold;
+            margin-bottom: 4px;
+        }
+
+        .highlight-col {
+            background-color: #fff9db;
+            font-weight: bold;
+        }
+
+        .no-data {
+            text-align: center;
+            color: #868e96;
+            font-style: italic;
+            padding: 30px;
+            background: #f8f9fa;
+            border-radius: 6px;
+        }
     </style>
     <!-- Google tag (gtag.js) -->
     <script async src="https://www.googletagmanager.com/gtag/js?id=G-FQ3TQDBQX8"></script>
     <script>
-      window.dataLayer = window.dataLayer || [];
-      function gtag(){dataLayer.push(arguments);}
-      gtag('js', new Date());
-    
-      gtag('config', 'G-FQ3TQDBQX8');
+        window.dataLayer = window.dataLayer || [];
+        function gtag() { dataLayer.push(arguments); }
+        gtag('js', new Date());
+
+        gtag('config', 'G-FQ3TQDBQX8');
     </script>
 </head>
+
 <body>
     <div class="container">
         <h1>AI短劇頻道數據即時監測儀表板</h1>
@@ -75,9 +182,9 @@
             <div class="filter-group">
                 <label for="limit-select">顯示排名數量：</label>
                 <select id="limit-select" onchange="renderTable()">
-                    <option value="5" selected>前 5 名</option>
+                    <option value="5">前 5 名</option>
                     <option value="10">前 10 名</option>
-                    <option value="20">前 20 名</option>
+                    <option value="20" selected>前 20 名</option>
                     <option value="50">前 50 名</option>
                 </select>
             </div>
@@ -95,7 +202,7 @@
             try {
                 const response = await fetch('data.json?t=' + new Date().getTime());
                 rawData = await response.json();
-                
+
                 document.getElementById('update-time').innerText = rawData.updated_at || '未知';
 
                 const channelSelect = document.getElementById('channel-select');
@@ -175,4 +282,5 @@
         window.onload = loadData;
     </script>
 </body>
+
 </html>
