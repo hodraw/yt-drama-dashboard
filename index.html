@@ -176,6 +176,7 @@
                 <label for="sort-select">排序依據：</label>
                 <select id="sort-select" onchange="renderTable()">
                     <option value="views" selected>依觀看次數</option>
+                    <option value="views_per_hour">依每小時觀看數 (VPH)</option>
                     <option value="likes">依喜歡次數 (按讚數)</option>
                 </select>
             </div>
@@ -225,7 +226,7 @@
             const keyword = document.getElementById('search-input').value.trim().toLowerCase();
             const selectedChannel = document.getElementById('channel-select').value;
             const maxHours = parseFloat(document.getElementById('time-select').value);
-            const sortBy = document.getElementById('sort-select').value; // views 或 likes
+            const sortBy = document.getElementById('sort-select').value; // views, views_per_hour 或 likes
             const limit = parseInt(document.getElementById('limit-select').value);
 
             let filtered = rawData.videos.filter(v => {
@@ -235,7 +236,7 @@
                 return matchChannel && matchTime && matchKeyword;
             });
 
-            // 動態選擇依據觀看數或按讚數排序
+            // 動態選擇依據觀看數、每小時觀看數或按讚數排序
             filtered.sort((a, b) => (b[sortBy] || 0) - (a[sortBy] || 0));
             const result = filtered.slice(0, limit);
 
@@ -246,21 +247,25 @@
             }
 
             const isViewsSort = sortBy === 'views';
+            const isVphSort = sortBy === 'views_per_hour';
+            const isLikesSort = sortBy === 'likes';
 
             let html = `<table>
                 <thead>
                     <tr>
-                        <th style="width: 7%;">排名</th>
-                        <th style="width: 43%;">影片名稱 / 頻道</th>
-                        <th style="width: 20%;">發布時間 (台北時間)</th>
-                        <th style="width: 15%;" class="${isViewsSort ? 'highlight-col' : ''}">觀看次數 ${isViewsSort ? '▼' : ''}</th>
-                        <th style="width: 15%;" class="${!isViewsSort ? 'highlight-col' : ''}">喜歡次數 ${!isViewsSort ? '▼' : ''}</th>
+                        <th style="width: 6%;">排名</th>
+                        <th style="width: 34%;">影片名稱 / 頻道</th>
+                        <th style="width: 18%;">發布時間 (台北時間)</th>
+                        <th style="width: 14%;" class="${isViewsSort ? 'highlight-col' : ''}">觀看次數 ${isViewsSort ? '▼' : ''}</th>
+                        <th style="width: 14%;" class="${isVphSort ? 'highlight-col' : ''}">每小時觀看 (VPH) ${isVphSort ? '▼' : ''}</th>
+                        <th style="width: 14%;" class="${isLikesSort ? 'highlight-col' : ''}">喜歡次數 ${isLikesSort ? '▼' : ''}</th>
                     </tr>
                 </thead>
                 <tbody>`;
 
             result.forEach((v, index) => {
                 const viewsFormatted = v.views !== undefined ? v.views.toLocaleString() : '0';
+                const vphFormatted = v.views_per_hour !== undefined ? v.views_per_hour.toLocaleString() : '0';
                 const likesFormatted = v.likes !== undefined ? v.likes.toLocaleString() : '0';
 
                 html += `
@@ -272,7 +277,8 @@
                         </td>
                         <td>${v.published_at}</td>
                         <td class="${isViewsSort ? 'highlight-col' : ''}">${viewsFormatted} 次</td>
-                        <td class="${!isViewsSort ? 'highlight-col' : ''}">${likesFormatted} 次</td>
+                        <td class="${isVphSort ? 'highlight-col' : ''}">${vphFormatted} 次/時</td>
+                        <td class="${isLikesSort ? 'highlight-col' : ''}">${likesFormatted} 次</td>
                     </tr>`;
             });
 

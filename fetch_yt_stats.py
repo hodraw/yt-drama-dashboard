@@ -112,14 +112,20 @@ def fetch_recent_videos_with_pagination(youtube, playlist_id, channel_name):
                 raw_title = item["snippet"]["title"]
                 traditional_title = cc.convert(raw_title)
 
+                views = int(stats.get("viewCount", 0))
+                likes = int(stats.get("likeCount", 0))
+                safe_hours = max(hours_diff, 0.1)
+                views_per_hour = round(views / safe_hours, 1)
+
                 videos.append({
                     "channel_name": channel_name,
                     "title": traditional_title,
                     "url": f"https://www.youtube.com/watch?v={item['id']}",
                     "published_at": published_at_taipei.strftime("%Y-%m-%d %H:%M:%S"),
-                    "views": int(stats.get("viewCount", 0)),
-                    "likes": int(stats.get("likeCount", 0)),
-                    "hours_ago": hours_diff
+                    "views": views,
+                    "likes": likes,
+                    "hours_ago": hours_diff,
+                    "views_per_hour": views_per_hour
                 })
         except Exception as e:
             print(f"⚠️ 抓取【{channel_name}】影片詳細數據時發生錯誤: {e}")
