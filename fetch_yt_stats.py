@@ -30,7 +30,7 @@ CHANNELS = [
     {"name": "星梦AI社", "id": "UCUDZ-mp8iNVypuhFe9-CS5Q"}
 ]
 
-MAX_FETCH_HOURS = 240 
+MAX_FETCH_HOURS = 336 
 TAIPEI_TZ = ZoneInfo("Asia/Taipei")
 cc = OpenCC('s2twp')
 
@@ -131,7 +131,7 @@ def main():
     all_videos = []
 
     for channel in CHANNELS:
-        print(f"正在完整抓取近 7 天影片：{channel['name']}...")
+        print(f"正在完整抓取近 14 天影片：{channel['name']}...")
         playlist_id = get_channel_uploads_playlist_id(youtube, channel["id"])
         videos = fetch_recent_videos_with_pagination(youtube, playlist_id, channel["name"])
         all_videos.extend(videos)
