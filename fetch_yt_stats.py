@@ -47,9 +47,12 @@ class QuotaExceededError(Exception):
 
 def _check_quota_error(e):
     """若 HttpError 為 403 quotaExceeded，轉換為 QuotaExceededError"""
-    if isinstance(e, HttpError) and e.resp.status == 403 and "quotaExceeded" in str(e.content):
-        return True
-    return False
+    if not isinstance(e, HttpError):
+        return False
+    if e.resp.status != 403:
+        return False
+    # str(e) 包含完整錯誤訊息（含 Details），比 str(e.content) bytes 更可靠
+    return "quotaExceeded" in str(e)
 
 
 def get_channel_uploads_playlist_id(youtube, channel_id):
