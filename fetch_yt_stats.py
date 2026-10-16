@@ -1,8 +1,10 @@
 import os
+import sys
 import json
 import datetime
 from zoneinfo import ZoneInfo
 from googleapiclient.discovery import build
+from googleapiclient.errors import HttpError
 from opencc import OpenCC
 
 API_KEY = os.environ.get("YOUTUBE_API_KEY")
@@ -30,9 +32,25 @@ CHANNELS = [
     {"name": "星梦AI社", "id": "UCUDZ-mp8iNVypuhFe9-CS5Q"}
 ]
 
-MAX_FETCH_HOURS = 336 
+MAX_FETCH_HOURS = 336
 TAIPEI_TZ = ZoneInfo("Asia/Taipei")
 cc = OpenCC('s2twp')
+
+# 至少要成功抓到這個比例的頻道，否則視為資料不完整
+MIN_CHANNEL_SUCCESS_RATIO = 0.5
+
+
+class QuotaExceededError(Exception):
+    """YouTube API 配額耗盡時拋出"""
+    pass
+
+
+def _check_quota_error(e):
+    """若 HttpError 為 403 quotaExceeded，轉換為 QuotaExceededError"""
+    if isinstance(e, HttpError) and e.resp.status == 403 and "quotaExceeded" in str(e.content):
+        return True
+    return False
+
 
 def get_channel_uploads_playlist_id(youtube, channel_id):
     """透過 API 正確獲取頻道的上傳播放清單 ID"""
@@ -41,19 +59,24 @@ def get_channel_uploads_playlist_id(youtube, channel_id):
         items = res.get("items", [])
         if items:
             return items[0]["contentDetails"]["relatedPlaylists"]["uploads"]
+    except HttpError as e:
+        if _check_quota_error(e):
+            raise QuotaExceededError(f"配額耗盡 (channels.list / {channel_id})")
+        print(f"⚠️ 無法取得頻道 {channel_id} 的播放清單 ID: {e}")
     except Exception as e:
         print(f"⚠️ 無法取得頻道 {channel_id} 的播放清單 ID: {e}")
     return None
+
 
 def fetch_recent_videos_with_pagination(youtube, playlist_id, channel_name):
     if not playlist_id:
         print(f"⚠️ 頻道【{channel_name}】無有效的播放清單，已跳過。")
         return []
-        
+
     now = datetime.datetime.now(datetime.timezone.utc)
     all_raw_items = []
     next_page_token = None
-    
+
     try:
         while True:
             playlist_res = youtube.playlistItems().list(
@@ -76,13 +99,18 @@ def fetch_recent_videos_with_pagination(youtube, playlist_id, channel_name):
                 if hours_diff > MAX_FETCH_HOURS:
                     stop_fetching = True
                     break
-                
+
                 all_raw_items.append(item)
 
             next_page_token = playlist_res.get("nextPageToken")
             if stop_fetching or not next_page_token:
                 break
 
+    except HttpError as e:
+        if _check_quota_error(e):
+            raise QuotaExceededError(f"配額耗盡 (playlistItems.list / {channel_name})")
+        print(f"⚠️ 抓取【{channel_name}】影片列表時發生錯誤 (已跳過): {e}")
+        return []
     except Exception as e:
         print(f"⚠️ 抓取【{channel_name}】影片列表時發生錯誤 (已跳過): {e}")
         return []
@@ -104,7 +132,7 @@ def fetch_recent_videos_with_pagination(youtube, playlist_id, channel_name):
             for item in video_res.get("items", []):
                 published_at_str = item["snippet"]["publishedAt"]
                 published_at_utc = datetime.datetime.fromisoformat(published_at_str.replace("Z", "+00:00"))
-                
+
                 published_at_taipei = published_at_utc.astimezone(TAIPEI_TZ)
                 hours_diff = (now - published_at_utc).total_seconds() / 3600.0
 
@@ -127,23 +155,58 @@ def fetch_recent_videos_with_pagination(youtube, playlist_id, channel_name):
                     "hours_ago": hours_diff,
                     "views_per_hour": views_per_hour
                 })
+        except HttpError as e:
+            if _check_quota_error(e):
+                raise QuotaExceededError(f"配額耗盡 (videos.list / {channel_name})")
+            print(f"⚠️ 抓取【{channel_name}】影片詳細數據時發生錯誤: {e}")
         except Exception as e:
             print(f"⚠️ 抓取【{channel_name}】影片詳細數據時發生錯誤: {e}")
 
     return videos
 
+
 def main():
     youtube = build("youtube", "v3", developerKey=API_KEY)
     all_videos = []
+    successful_channels = 0
+    quota_exceeded = False
 
     for channel in CHANNELS:
         print(f"正在完整抓取近 14 天影片：{channel['name']}...")
-        playlist_id = get_channel_uploads_playlist_id(youtube, channel["id"])
-        videos = fetch_recent_videos_with_pagination(youtube, playlist_id, channel["name"])
-        all_videos.extend(videos)
+        try:
+            playlist_id = get_channel_uploads_playlist_id(youtube, channel["id"])
+            videos = fetch_recent_videos_with_pagination(youtube, playlist_id, channel["name"])
+            all_videos.extend(videos)
+            successful_channels += 1
+        except QuotaExceededError as e:
+            print(f"\n🚫 {e}")
+            print("❌ YouTube API 配額已耗盡，本次抓取中止。")
+            quota_exceeded = True
+            break
+        except Exception as e:
+            print(f"⚠️ 抓取頻道【{channel['name']}】時發生未預期錯誤: {e}")
 
+    # ── 資料完整性檢查 ────────────────────────────────────────────
+    total_channels = len(CHANNELS)
+    success_ratio = successful_channels / total_channels
+
+    if quota_exceeded:
+        print(f"\n⏭️  成功抓取 {successful_channels}/{total_channels} 個頻道後配額耗盡。")
+        print("🛡️  為保護現有資料，本次不寫入 data.json。")
+        sys.exit(1)  # 非零退出碼 → GitHub Actions 標記為失敗
+
+    if success_ratio < MIN_CHANNEL_SUCCESS_RATIO:
+        print(f"\n⚠️  資料不完整：僅成功抓取 {successful_channels}/{total_channels} 個頻道"
+              f"（{success_ratio:.0%} < 門檻 {MIN_CHANNEL_SUCCESS_RATIO:.0%}）。")
+        print("🛡️  為保護現有資料，本次不寫入 data.json。")
+        sys.exit(1)
+
+    if not all_videos:
+        print("\n⚠️  抓取結果為空，不寫入 data.json 以避免清空現有資料。")
+        sys.exit(1)
+
+    # ── 全部正常，寫入 data.json ──────────────────────────────────
     now_taipei = datetime.datetime.now(TAIPEI_TZ)
-
     output_data = {
         "updated_at": now_taipei.strftime("%Y-%m-%d %H:%M:%S"),
         "channels": [c["name"] for c in CHANNELS],
@@ -153,7 +216,8 @@ def main():
     with open("data.json", "w", encoding="utf-8") as f:
         json.dump(output_data, f, ensure_ascii=False, indent=2)
 
-    print("資料更新成功！")
+    print(f"\n✅ 資料更新成功！共抓取 {len(all_videos)} 部影片（{successful_channels}/{total_channels} 個頻道）。")
+
 
 if __name__ == "__main__":
     main()
